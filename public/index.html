@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>가족채팅방</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+      color: #1e293b;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 420px;
+      background: #ffffff;
+      border-radius: 24px;
+      box-shadow: 0 12px 32px rgba(2, 132, 199, 0.15);
+      overflow: hidden;
+      border: 2px solid #e0f2fe;
+    }
+
+    .screen {
+      display: none;
+      padding: 28px 22px;
+      flex-direction: column;
+      min-height: 580px;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px 15px;
+      border: 1.5px solid #bae6fd;
+      border-radius: 12px;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+      background: #f8fafc;
+    }
+
+    input:focus {
+      border-color: #0284c7;
+      background: #ffffff;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 13px 16px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #0ea5e9;
+      color: white;
+      width: 100%;
+    }
+
+    .btn-primary:hover {
+      background: #0284c7;
+    }
+
+    .btn-sub {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .btn-sub:hover {
+      background: #bae6fd;
+    }
+
+    .btn-danger {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .btn-danger:hover {
+      background: #fecaca;
+    }
+
+    .header-box {
+      text-align: center;
+      margin-top: 12px;
+      margin-bottom: 24px;
+    }
+
+    .room-badge {
+      display: inline-block;
+      background: #e0f2fe;
+      color: #0284c7;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 999px;
+      margin-bottom: 10px;
+    }
+
+    .room-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: #0369a1;
+      margin-bottom: 8px;
+    }
+
+    .room-desc {
+      font-size: 14px;
+      color: #475569;
+    }
+
+    .notice-box {
+      background: #f0f9ff;
+      border: 1px dashed #7dd3fc;
+      color: #0369a1;
+      padding: 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      text-align: center;
+      margin-bottom: 22px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .host-section {
+      margin-top: auto;
+      padding-top: 18px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .host-label {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .host-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .host-row input {
+      padding: 9px 12px;
+      font-size: 13px;
+    }
+
+    .host-row button {
+      padding: 9px 14px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .waiting-box {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      gap: 16px;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid #bae6fd;
+      border-top-color: #0284c7;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .waiting-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0369a1;
+    }
+
+    .waiting-sub {
+      font-size: 14px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    #screen-chat {
+      padding: 0;
+      height: 620px;
+    }
+
+    .chat-header {
+      background: #0ea5e9;
+      color: white;
+      padding: 18px 20px;
+    }
+
+    .chat-header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .chat-header-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .btn-leave {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+
+    .participants-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .participant-chip {
+      background: rgba(255, 255, 255, 0.22);
+      padding: 4px 10px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .kick-btn {
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      font-size: 10px;
+      line-height: 1;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .host-panel {
+      background: #f0f9ff;
+      border-bottom: 1.5px solid #bae6fd;
+      padding: 12px 16px;
+      display: none;
+    }
+
+    .host-panel.visible {
+      display: block;
+    }
+
+    .host-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .host-panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0369a1;
+    }
+
+    .btn-close-room {
+      background: #ef4444;
+      color: white;
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 8px;
+    }
+
+    .waiting-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 110px;
+      overflow-y: auto;
+    }
+
+    .waiting-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      padding: 7px 10px;
+      border-radius: 10px;
+      border: 1px solid #e0f2fe;
+      font-size: 13px;
+    }
+
+    .waiting-actions {
+      display: flex;
+      gap: 5px;
+    }
+
+    .waiting-actions button {
+      padding: 4px 9px;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #f8fafc;
+    }
+
+    .msg-system {
+      align-self: center;
+      background: #e2e8f0;
+      color: #475569;
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 999px;
+    }
+
+    .msg-bubble-wrap {
+      display: flex;
+      flex-direction: column;
+      max-width: 78%;
+    }
+
+    .msg-bubble-wrap.mine {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+
+    .msg-bubble-wrap.other {
+      align-self: flex-start;
+      align-items: flex-start;
+    }
+
+    .msg-sender {
+      font-size: 11px;
+      color: #64748b;
+      margin-bottom: 3px;
+      padding: 0 4px;
+    }
+
+    .msg-bubble {
+      padding: 10px 14px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    .mine .msg-bubble {
+      background: #0ea5e9;
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .other .msg-bubble {
+      background: white;
+      color: #1e293b;
+      border: 1px solid #e2e8f0;
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-input-area {
+      display: flex;
+      gap: 8px;
+      padding: 12px 14px;
+      background: white;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .chat-input-area button {
+      white-space: nowrap;
+      padding: 12px 18px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- [화면 1: 입구] -->
+    <div id="screen-entrance" class="screen active">
+      <div class="header-box">
+        <span class="room-badge">☁️ 우리 가족 전용 공간</span>
+        <h1 class="room-title">가족채팅방</h1>
+        <p class="room-desc">주원이 가족이 소통하는 채팅방</p>
+      </div>
+
+      <div class="notice-box">
+        📢 방장이 먼저 들어와야 입장할 수 있어요.
+      </div>
+
+      <div class="form-group">
+        <input type="text" id="guest-nickname" placeholder="사용할 닉네임을 입력하세요 (예: 엄마, 아빠)" />
+        <input type="password" id="guest-password" placeholder="입장 비밀번호를 입력하세요" />
+        <button class="btn-primary" onclick="requestEntry()">입장 요청하기</button>
+      </div>
+
+      <div class="host-section">
+        <div class="host-label">🔑 [방장 입장]</div>
+        <div class="host-row">
+          <input type="password" id="host-password" placeholder="방장 암호 입력" />
+          <button class="btn-sub" onclick="enterAsHost()">방장으로 입장</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- [화면 2: 입장 확인 중] -->
+    <div id="screen-waiting" class="screen">
+      <div class="waiting-box">
+        <div class="spinner"></div>
+        <div class="waiting-title">방장이 수락하면 바로 들어가요</div>
+        <p class="waiting-sub" id="waiting-user-info">잠시만 기다려 주세요...</p>
+        <button class="btn-sub" style="margin-top: 12px;" onclick="leaveRoom()">입구로 돌아가기</button>
+      </div>
+    </div>
+
+    <!-- [화면 3: 채팅방] -->
+    <div id="screen-chat" class="screen">
+      <div class="chat-header">
+        <div class="chat-header-top">
+          <div class="chat-header-title">가족채팅방</div>
+          <button class="btn-leave" onclick="leaveRoom()">나가기</button>
+        </div>
+        <div class="participants-wrap" id="participants-list"></div>
+      </div>
+
+      <!-- 방장에게만 보이는 관리 칸 -->
+      <div id="host-panel" class="host-panel">
+        <div class="host-panel-header">
+          <span class="host-panel-title">🛎️ 입장을 기다리는 사람</span>
+          <button class="btn-close-room" onclick="closeRoom()">방 닫기</button>
+        </div>
+        <div class="waiting-list" id="waiting-list"></div>
+      </div>
+
+      <!-- 가운데 대화창 -->
+      <div class="chat-messages" id="chat-messages"></div>
+
+      <!-- 아래쪽 메시지 입력칸 -->
+      <div class="chat-input-area">
+        <input type="text" id="chat-input" placeholder="가족에게 보낼 메시지를 입력하세요..." onkeypress="if(event.key==='Enter') sendMessage()" />
+        <button class="btn-primary" style="width: auto;" onclick="sendMessage()">보내기</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const socket = io();
+    let isHost = false;
+
+    function goToScreen(screenId) {
+      document.querySelectorAll(".screen").forEach(el => el.classList.remove("active"));
+      document.getElementById(screenId).classList.add("active");
+    }
+
+    // 손님 입장 요청
+    function requestEntry() {
+      const nickname = document.getElementById("guest-nickname").value.trim();
+      const password = document.getElementById("guest-password").value.trim();
+      socket.emit("guestRequest", { nickname, password });
+    }
+
+    // 방장 입장 요청
+    function enterAsHost() {
+      const password = document.getElementById("host-password").value.trim();
+      socket.emit("hostEnter", { password });
+    }
+
+    // 나가기(새로고침하여 연결 초기화)
+    function leaveRoom() {
+      location.reload();
+    }
+
+    // 메시지 보내기
+    function sendMessage() {
+      const input = document.getElementById("chat-input");
+      const text = input.value.trim();
+      if (!text) return;
+      socket.emit("sendMessage", text);
+      input.value = "";
+    }
+
+    // 방장 전용 액션
+    function approveGuest(guestId) {
+      socket.emit("approveGuest", guestId);
+    }
+
+    function rejectGuest(guestId) {
+      socket.emit("rejectGuest", guestId);
+    }
+
+    function kickParticipant(targetId, name) {
+      if (confirm(`'${name}' 님을 채팅방에서 내보낼까요?`)) {
+        socket.emit("kickParticipant", targetId);
+      }
+    }
+
+    function closeRoom() {
+      if (confirm("정말 채팅방을 닫을까요? 모든 가족이 입구로 이동합니다.")) {
+        socket.emit("closeRoom");
+      }
+    }
+
+    // --- 서버 이벤트 수신 ---
+
+    socket.on("errorMsg", (msg) => {
+      alert(msg);
+    });
+
+    socket.on("waitingStarted", ({ name }) => {
+      document.getElementById("waiting-user-info").innerText = `'${name}' 님의 입장 요청을 방장에게 보냈어요.`;
+      goToScreen("screen-waiting");
+    });
+
+    socket.on("enterSuccess", ({ isHost: hostFlag }) => {
+      isHost = hostFlag;
+      const hostPanel = document.getElementById("host-panel");
+      if (isHost) {
+        hostPanel.classList.add("visible");
+      } else {
+        hostPanel.classList.remove("visible");
+      }
+
+      document.getElementById("chat-messages").innerHTML =
+        `<div class="msg-system">주원이 가족이 소통하는 채팅방에 오신 것을 환영합니다!</div>`;
+      goToScreen("screen-chat");
+    });
+
+    socket.on("roomState", ({ participants }) => {
+      const container = document.getElementById("participants-list");
+      container.innerHTML = `<span>참여 중(${participants.length}):</span>`;
+
+      participants.forEach(p => {
+        const chip = document.createElement("span");
+        chip.className = "participant-chip";
+        chip.innerText = p.name;
+
+        if (isHost && p.id !== socket.id) {
+          const kickBtn = document.createElement("button");
+          kickBtn.className = "kick-btn";
+          kickBtn.innerText = "×";
+          kickBtn.title = "내보내기";
+          kickBtn.onclick = () => kickParticipant(p.id, p.name);
+          chip.appendChild(kickBtn);
+        }
+
+        container.appendChild(chip);
+      });
+    });
+
+    socket.on("waitingList", (list) => {
+      const listEl = document.getElementById("waiting-list");
+      listEl.innerHTML = "";
+
+      if (list.length === 0) {
+        listEl.innerHTML = `<div style="font-size:12px; color:#64748b;">현재 대기 중인 가족이 없습니다.</div>`;
+        return;
+      }
+
+      list.forEach(guest => {
+        const item = document.createElement("div");
+        item.className = "waiting-item";
+        item.innerHTML = `
+          <span><strong>${guest.name}</strong> 님이 입장을 요청했어요</span>
+          <div class="waiting-actions">
+            <button class="btn-primary" onclick="approveGuest('${guest.id}')">수락</button>
+            <button class="btn-danger" onclick="rejectGuest('${guest.id}')">거절</button>
+          </div>
+        `;
+        listEl.appendChild(item);
+      });
+    });
+
+    socket.on("chatMessage", ({ senderId, senderName, text }) => {
+      const chatBox = document.getElementById("chat-messages");
+      const isMine = senderId === socket.id;
+      const wrap = document.createElement("div");
+      wrap.className = `msg-bubble-wrap ${isMine ? "mine" : "other"}`;
+      wrap.innerHTML = `
+        <div class="msg-sender">${senderName}</div>
+        <div class="msg-bubble"></div>
+      `;
+      wrap.querySelector(".msg-bubble").innerText = text;
+      chatBox.appendChild(wrap);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    socket.on("systemMsg", (text) => {
+      const chatBox = document.getElementById("chat-messages");
+      const sys = document.createElement("div");
+      sys.className = "msg-system";
+      sys.innerText = text;
+      chatBox.appendChild(sys);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    socket.on("rejected", (msg) => {
+      alert(msg);
+      goToScreen("screen-entrance");
+    });
+
+    socket.on("kicked", (msg) => {
+      alert(msg);
+      goToScreen("screen-entrance");
+    });
+
+    socket.on("roomClosed", (msg) => {
+      alert(msg);
+      goToScreen("screen-entrance");
+    });
+  </script>
+</body>
+</html>
