@@ -1,0 +1,13 @@
+{
+  "name": "family-chat",
+  "version": "1.0.0",
+  "description": "주원이 가족이 소통하는 실시간 채팅방",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}
